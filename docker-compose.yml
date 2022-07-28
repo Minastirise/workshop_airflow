@@ -94,6 +94,7 @@ services:
     ports:
       - 5430:5432
     environment:
+      POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
       POSTGRES_DB: test
     volumes:
