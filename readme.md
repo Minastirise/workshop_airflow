@@ -17,7 +17,7 @@ docker-compose up
 http://localhost:8080
 airflow / airflow 
 
-# Проверить запуск python скрипта
+# Проверить запуск python скрипта - запускаем из отдельного окошка терминала как python файл
 apt update -y
 sudo apt install -y python3-dev python3-pip libpq-dev gcc
 sudo pip install psycopg2
