@@ -1,58 +1,72 @@
 #!/usr/bin/python3
 
-import requests
+"""
+This is a simple ETL data pipeline example which extract rates data from API
+ and load it into postgresql.
+"""
+
 import decimal
-import psycopg2
 from time import localtime, strftime
-from datetime import datetime
+import psycopg2
+import requests
 
-url_base = 'https://api.exchangerate.host/'
+URL_BASE = 'https://api.exchangerate.host/'
 
-table_name = 'rates'
-rate_base = 'BTC'
-rate_target = 'USD'
+TABLE_NAME = 'rates'
+RATE_BASE = 'BTC'
+RATE_TARGET = 'USD'
 
-pg_hostname = 'host.docker.internal'
-pg_port = '5430'
-pg_username = 'postgres'
-pg_pass = 'password'
-pg_db = 'test'
+PG_HOSTNAME = 'host.docker.internal'
+PG_PORT = '5430'
+PG_USERNAME = 'postgres'
+PG_PASS = 'password'
+PG_DB = 'test'
 
-	
-"""
-Run uploading code from exchangerate.host API
-"""
+
 def import_codes():
-# Parameters
+    """
+    Run uploading code from exchangerate.host API
+    """
+    # Parameters
     hist_date = "latest"
-    url = url_base + hist_date
-    try:
-        response = requests.get(url,
-            params={'base': rate_base})
-    except Exception as err:
-        print(f'Error occured: {err}')
+    url = URL_BASE + hist_date
+
+    response = requests.get(url,
+                            params={'base': RATE_BASE},
+                            timeout=120)
+    if not response:
+        print(f'Response Failed: {response.status_code}')
         return
+
     data = response.json()
     rate_date = data['date']
     value_ = str(decimal.Decimal(data['rates']['USD']))[:20]
-    
-    insert_data(hist_date, data, rate_date, value_)
+
+    insert_data(hist_date, rate_date, value_)
 
 
-"""
-Save rates in pustgresql
-"""
-def insert_data(hist_date, data, rate_date, value_):
+def insert_data(hist_date, rate_date, value_):
+    """
+    Save rates in pustgresql
+    """
     ingest_datetime = strftime("%Y-%m-%d %H:%M:%S", localtime())
-    
-    conn = psycopg2.connect(host=pg_hostname, port=pg_port, user=pg_username, password=pg_pass, database=pg_db)
+
+    conn = psycopg2.connect(host=PG_HOSTNAME,
+                            port=PG_PORT,
+                            user=PG_USERNAME,
+                            password=PG_PASS,
+                            database=PG_DB)
     cursor = conn.cursor()
     if hist_date != "latest":
-        cursor.execute(f"DELETE FROM {table_name} WHERE rate_date = '{rate_date}';")
-        conn.commit()    
-    cursor.execute(f"INSERT INTO {table_name} (ingest_datetime, rate_date, rate_base, rate_target, value_ ) VALUES('{ingest_datetime}','{rate_date}', '{rate_base}', '{rate_target}', '{value_}');")
-    conn.commit() 
+        cursor.execute(f"DELETE FROM {TABLE_NAME} WHERE rate_date = '{rate_date}';")
+        conn.commit()
+    cursor.execute(f"""INSERT INTO {TABLE_NAME}
+		(ingest_datetime, rate_date, rate_base, rate_target, value_ )
+		VALUES('{ingest_datetime}','{rate_date}', '{RATE_BASE}',
+		'{RATE_TARGET}', '{value_}');
+		""")
+    conn.commit()
     cursor.close()
-    conn.close()	
-    
+    conn.close()
+
 import_codes()
